@@ -12,8 +12,11 @@ var Stickit = function(){
         this._$elem.css({
             transition: 'top 0.4s ease-out 0.1s'
         });
-        this._top = o.top != null ? o.top : (this._$elem.css('top') || 0);
-        this._left = o.left != null ? o.left : (this._$elem.css('left') || 0);
+        this._offsetTop = +o.offsetTop || 0;
+        this._offsetBottom = +o.offsetBottom || 0;
+        this._top = o.top != null ? o.top : (this._$elem.css('top') || null);
+        this._left = o.left != null ? o.left : (this._$elem.css('left') || null);
+        this._right = o.right != null ? o.right : (this._$elem.css('right') || null);
         this._init();
     }
     P._init = function(){
@@ -30,9 +33,15 @@ var Stickit = function(){
     P._getCoords = function($obj){
         var result = {
             top: $obj === this._$window ? $obj.scrollTop() : $obj.offset().top,
-            height: $obj.height()
+            height: $obj.outerHeight($obj === this._$elem)
         };
         result.bottom = result.top + result.height;
+        if ($obj === this._$parent) {
+            result.rtop = result.top;
+            result.rbottom = result.bottom;
+            result.top += this._offsetTop;
+            result.bottom -= this._offsetBottom;
+        }
         return result;
     };
     P._tick = function(){
@@ -54,7 +63,7 @@ var Stickit = function(){
             console.log('case 3');
         }
         if (parCoords.bottom < vpCoords.bottom) {
-            top = Math.min(parCoords.bottom, vpCoords.bottom) - elCoords.height;
+            top = Math.min(parCoords.bottom - elCoords.height, top);
             console.log('case 4');
         }
         top = Math.max(parCoords.top, top);
@@ -64,10 +73,21 @@ var Stickit = function(){
            [vpCoords.top, vpCoords.bottom, parCoords.top, parCoords.bottom, elCoords.top, elCoords.bottom, top]
         ]);
 
-        top -= parCoords.top;
-        this._$elem.css({
-            top: top + 'px'
-        });
+        top -= parCoords.rtop;
+        var css = {
+            top: top + 'px',
+            left: this._left,
+            right: this._right
+        };
+        //if (this._left) {
+        //    css.left = this._left;
+        //    css.right = '';
+        //} else if (this._right) {
+        //    css.left = '';
+        //    css.right = this._right;
+        //}
+
+        this._$elem.css(css);
     };
 
     function debounce(func, context, delay){
