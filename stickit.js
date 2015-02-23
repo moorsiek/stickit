@@ -1,4 +1,49 @@
 var Stickit = function(){
+    //transitions support checking code was taken from stackoverflow here:
+    //http://stackoverflow.com/questions/7264899/detect-css-transitions-using-javascript-and-without-modernizr
+    var TRANSITIONS_SUPPORTED = function(){
+        var b = document.body || document.documentElement,
+            s = b.style,
+            p = 'transition';
+
+        if (typeof s[p] == 'string') { return true; }
+
+        // Tests for vendor specific prop
+        var v = ['Moz', 'webkit', 'Webkit', 'Khtml', 'O', 'ms'];
+        p = p.charAt(0).toUpperCase() + p.substr(1);
+
+        for (var i=0; i<v.length; i++) {
+            if (typeof s[v[i] + p] == 'string') { return true; }
+        }
+
+        return false;
+    }();
+
+    //TODO: remove console mocking up
+    var console = window.console || {
+        log: function(){},
+        table: function(){}
+    };
+    console.table = console.table || function(){};
+
+    function supportsTransitions() {
+        var b = document.body || document.documentElement,
+            s = b.style,
+            p = 'transition';
+
+        if (typeof s[p] == 'string') { return true; }
+
+        // Tests for vendor specific prop
+        var v = ['Moz', 'webkit', 'Webkit', 'Khtml', 'O', 'ms'];
+        p = p.charAt(0).toUpperCase() + p.substr(1);
+
+        for (var i=0; i<v.length; i++) {
+            if (typeof s[v[i] + p] == 'string') { return true; }
+        }
+
+        return false;
+    }
+
     var S = Stickit,
         P = S.prototype,
         NAMESPACE = 'stickit';
@@ -9,9 +54,13 @@ var Stickit = function(){
         this._$parent = this._$elem.parent();
         this._$parent.css('position', 'relative'); //TODO: REMOVE!
         this._$elem.css('position', 'absolute'); //TODO: REMOVE!
-        this._$elem.css({
-            transition: 'top 0.4s ease-out 0.1s'
-        });
+        this._animationDelay = o.animationDelay != null ? o.animationDelay : 400;
+        if (TRANSITIONS_SUPPORTED) {
+            //TODO: implement jquery-animate delay too for consistency
+            this._$elem.css({
+                transition: 'top ' + (this._animationDelay / 1000) + 's ease-out 0.1s'
+            });
+        }
         this._offsetTop = +o.offsetTop || 0;
         this._offsetBottom = +o.offsetBottom || 0;
         this._top = o.top != null ? o.top : (this._$elem.css('top') || null);
@@ -25,7 +74,9 @@ var Stickit = function(){
 
         function onResize() {
             that._windowHeight = that._$window.height();
+            that._tick();
         }
+
         this._$window
             .on('resize.' + NAMESPACE, onResize)
             .on('scroll.' + NAMESPACE, debounce(this._tick, this, 10));
@@ -49,18 +100,15 @@ var Stickit = function(){
             elCoords = this._getCoords(this._$elem),
             parCoords = this._getCoords(this._$parent),
             top;
-        //this._$elem.css({
-        //    'top': vpCoords.top + 100
-        //});
 
         top = parCoords.top;
-        if (top < vpCoords.top) {
-            console.log('case 2');
-            top = vpCoords.top;
-        }
         if ((top + elCoords.height) > vpCoords.bottom) {
             top = vpCoords.bottom - elCoords.height;
             console.log('case 3');
+        }
+        if (top < vpCoords.top) {
+            console.log('case 2');
+            top = vpCoords.top;
         }
         if (parCoords.bottom < vpCoords.bottom) {
             top = Math.min(parCoords.bottom - elCoords.height, top);
@@ -79,15 +127,14 @@ var Stickit = function(){
             left: this._left,
             right: this._right
         };
-        //if (this._left) {
-        //    css.left = this._left;
-        //    css.right = '';
-        //} else if (this._right) {
-        //    css.left = '';
-        //    css.right = this._right;
-        //}
 
-        this._$elem.css(css);
+        if (TRANSITIONS_SUPPORTED) {
+            this._$elem.css(css);
+        } else {
+            this._$elem.stop().animate(css, {
+                duration: 400
+            });
+        }
     };
 
     function debounce(func, context, delay){
